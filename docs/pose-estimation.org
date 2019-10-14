@@ -1,0 +1,36 @@
+#+OPTIONS: toc:nil 
+#+BEAMER_FRAME_LEVEL: 2
+# #+LaTeX_CLASS: koma-article 
+#+LaTeX_CLASS: beamer
+#+LaTeX_HEADER: \usepackage{khpreamble}
+#+LaTeX_HEADER: \newcommand{\sign}{\mathrm{sign}}
+#+LaTeX_HEADER: \renewcommand{\transp}{^{\mathrm{T}}}
+#+title: Pose estimation using an IMU
+#+date: 2019-10-16
+* What do I want the listener to understand? 			   :noexport:
+** Quaternions
+** Extended Kalman Filter
+
+* What will the students do? 					   :noexport:
+** Test algorithm 
+* Problem statement
+* Quaternions
+* EKF
+* Algorithm							   :noexport:
+** Minimum of a smooth function
+** Levenberg-Marquardt
+
+* Hands-on
+** Hands-on
+*** Set-up Wireless IMU
+*** Collect calibration data
+*** Check calibration
+* Footnotes
+
+[fn:1] Weiss, Stephan, et al. "Real-time onboard visual-inertial state estimation and self-calibration of MAVs in unknown environments." Robotics and Automation (ICRA), 2012 IEEE International Conference on. IEEE, 2012.
+
+[fn:2] Kok, Manon, et al. "Calibration of a magnetometer in combination with inertial sensors." Information Fusion (FUSION), 2012 15th International Conference on. IEEE, 2012.
+
+
+
+

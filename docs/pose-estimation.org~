@@ -1,0 +1,175 @@
+#+OPTIONS: toc:nil 
+#+BEAMER_FRAME_LEVEL: 2
+# #+LaTeX_CLASS: koma-article 
+#+LaTeX_CLASS: beamer
+#+LaTeX_HEADER: \usepackage{khpreamble}
+#+LaTeX_HEADER: \newcommand{\sign}{\mathrm{sign}}
+#+LaTeX_HEADER: \renewcommand{\transp}{^{\mathrm{T}}}
+#+title: IMU Calibration - part 1
+#+date: 2016-01-27
+* What do I want the listener to understand? 			   :noexport:
+** Why calibration is needed
+** Nonlinear least squares = maximum likelihood if gaussian noise
+** Principle of ML
+** Solution to ML/nonlinlsq using Levenberg-Marquardt
+
+* What will the students do? 					   :noexport:
+** Test algorithm 
+* Problem statement
+** Why do we calibrate IMUs?
+   - Must relate what we measure (e.g. Voltage) to real physical quantity (e.g. acceleration) 
+   - Unknown sensitivity (gain) \[\underbrace{y_m}_{\text{measurement}} = \underbrace{a_y}_{\text{gain}} \cdot  \underbrace{y_0}_{\text{true quantity}} \]
+   - Offset (bias) in measurement
+     \[y_m = a_y y_0 + \underbrace{b_y}_{\text{bias}}\]
+   - Misalignment between sensor axes leading to cross talk
+     \[ y_m = a_y  y_0 + b_y  + c_{yx} x_0 + b_x + c_{yz}  z_0 + b_z  \]
+   - Calibration by manufacturer often not accurate enough, or parameters change with time and/or working condition (temparature)
+
+** Main idea behind calibration
+   - Formulate model that describes the relationship between the physical quantity and the measurement 
+     \[ y_m = f(y_0; \theta) \quad \Leftrightarrow \quad \hat{y}_0 = f^{-1}(y_m; \theta)   \]
+   - Determine the parameters \(\theta\) of the model from measurements with known values of the physical quantities 
+     \[ \theta = \underset{\theta}{\operatorname{argmin}} \; g(\hat{y}_0, y_0; \theta) \]
+     where $g$ is an error function that quantifies the discrepency between model value and true value  
+** External- vs self-calibration
+   - External calibration referes to the use of some external device to generate known physical quantities
+   - Self-calibration refers to the use of the sensor-node's own sensors to calibrate. Some known physical quantity still needed (like gravitational acceleration).
+   - In this seminar we will focus on self-calibration of accelerometers without the need for expensive external equipment.
+** Gyro
+   - Known, or measurable change in orientation must be applied to the sensor
+   - Self-calibration can be done using on-sensor-node camera[fn:1]
+** Magnetometer
+   - Self-calibration can be performed assuming constant magnetic field and tracking the change in orientation of the sensor node (using gyro and/or camera)[fn:2]
+** Calibrating accelerometers
+   - The external reference used is the gravitational acceleration 
+   - When the sensor is in rest, the accelerometer measures the gravitational acceleration.
+   - The magnitude of the gravitational acceleration varies with location and with time
+     - Mexico City: \unit{9.779}{\metre\per\second\squared}
+     - Stockholm: \unit{9.818}{\metre\per\second\squared}
+   - The international gravity formula:
+     \begin{equation*}
+     \begin{split}
+      g = & 9.7803327 \Big(1 + 5.3024\cdot 10^{-3} \sin^2(\theta)  - 5.8 \cdot 10^{-6} \sin^2(2\theta) \Big)\\
+          & \; - 3.086 \cdot 10^{-6} h 
+     \end{split}
+     \end{equation}
+
+* Self-calibration of accelerometers
+** Signal models for acceleration
+   - The basic model of acceleration measurements is
+     \[ a_m = D a_0 + b + n, \]
+   - The \(3\times 3\) calibration matrix $D$ can have different structures
+     - Diagonal 
+     - Symmetric
+     - General
+   - \(b\) is a bias
+   - \(n\) is a measurement noise
+   - The parameters in the model are the elements of \(D\) and \(b\)
+** Straight forward estimation method
+   - Assume $N$ measurements \[ \{a_{m,k}, \, k=1,2,\ldots, N\} \] with known external acceleration
+     \[ \{a_{0,k}, \, k=1,2,\ldots, N\} \]
+   - Find the parameters \(D\) and \(b\) in the measurement model that minimizes the sum of squared residuals
+     \[ \hat{\theta}_{LS} = \underset{\theta}{\operatorname{argmin}}  \; \sum_{k=1}^N \left(a_{m,k} - Da_0 - b\right)^2 \]
+   - This is called least squares estimation
+** Maximum likelihood
+   - The measurement \(a_m = D a_0 + b + n\) depends on a random variable \(n\). This means that the measurement is also random variable.
+   - Since \(a_m\) is the sum of deterministic terms and a single random variable, it has the same variance as the random variable, but different mean
+   - Write the /probability density function/ (pdf) of \(a_m\) as \[f(a_m;\, \theta, a_0),\] where \(\theta\) is the vector of parameters in the measurement model.
+   - The /likelihood/ function is a function of \(\theta\). It describes how likely the parameter \(\theta\) is, /given the data/. Formally, it is the same function as the pdf, but with the role of \(a_m\) and \(\theta\) reversed:
+     \[ L(\theta ;\, a_m, a_0) = f(\a_m;\, \theta, a_0) \]
+** Maximum likelihood estimation
+    The maximum likelihood estimation of \(\theta\) is the value of \(\theta\) which maximizes the likelihood function
+    \[ \hat{\theta}_{ML} = \underset{\theta}{\operatorname{argmax}} \; L(\theta ;\, a_m, a_0). \]
+
+    Often it is more convenient to maximize the /logarithm/ of the likelihood function
+    \[ l(\theta ;\, a_m, a_0) = \log L(\theta ;\, a_m, a_0). \]
+
+** Maximum likelihood - gaussian noise
+   - If the measurement noise \(n\) is zero-mean gaussian, 
+     \(\mathcal{N}(0, S) \) then the mean of the measurement is \(\bar{a}_m = Da_0+b \) and the covariance is $S$.
+   - The pdf of the measurement is
+     \[ f(a_m;\, \theta, a_0) = \frac{1}{\sqrt{(2\pi)^3|S|}} \exp\Big(-\frac{1}{2}(a_m-Da_0-b)\transp S^{-1} (a_m-Da_0-b)\Big) \]
+   - This is the same as the likelihood function. The log-likelihood function becomes
+     \[ l(\theta) = -\frac{3}{2}\log(2\pi) - \frac{1}{2}\log |S| - \frac{1}{2}(a_m-Da_0-b)\transp S^{-1} (a_m-Da_0-b) \]
+   - The first two terms do not depend on $\theta$, so the ML estimate becomes
+     \[ \hat{\theta}_{ML} = \underset{\theta}{\operatorname{argmin}} \; \frac{1}{2}(a_m-Da_0-b)\transp S^{-1} (a_m-Da_0-b) \]
+
+
+** Maximum likelihood - several measurements
+   - Need the joint pdf of all the measurements \( a_{m,k},\; k=1,2,\ldots, N \)
+     \[ f(a_{m,1}, a_{m,2}, \ldots, a_{m,N};\, \theta ). \] 
+   - Assume independent measurement noise then
+     \[ f(a_{m,1}, a_{m,2}, \ldots, a_{m,N};\, \theta) = f_1(a_{m,1};\, \theta)f_2(a_{m,2};\, \theta)\cdots f_N(a_{m,N};\, \theta). \]
+   - The log-likelihood function becomes
+     \[ l(\theta) = \log f_1(a_{m,1};\, \theta) + \log f_2(a_{m,2};\, \theta) + \cdots + \log f_N(a_{m,N};\, \theta) \]
+
+** Maximum likelihood - several measurements - IID gaussian
+   It is common to assume independent and identical distributed measurement noise. This gives the maximum likelihood estimation problem
+   
+   \[ \hat{\theta}_{ML} = \underset{\theta}{\operatorname{argmin}} \; \frac{1}{2} \sum_{k=1}^N (a_{m,k}-Da_{0,k}-b)\transp S^{-1} (a_{m,k}-Da_{0,k}-b) \]
+   
+   Recall Least Squares estimate
+     \[ \hat{\theta}_{LS} = \underset{\theta}{\operatorname{argmin}}  \; \sum_{k=1}^N \left(a_{m,k} - Da_0 - b\right)^2 \]
+
+** To remember
+   \[
+   \text{Weighted least squares} = \text{maximum likelihood} \]
+   under the assumption of additive gaussian noise
+
+* Frosio et al 
+** What if the direction of the true acceleration is not known?
+   - Without an external apparatus, it is not possible to know the directon of the true acceleration \(a_0\) in the reference frame of the sensor.
+   - On the other hand, if the sensor is in rest wrt earth, then the magnitude \(||a_0||=g\) is known to good accuracy for different locations on earth.
+   - Find calibration parameters by minimizing squared difference between the magnitude of the acceleration estimated from the measurements 
+     \[ a_n = D^{-1}(a_m - b) \]
+     and the gravitational acceleration \(g\).
+   - Estimation problem
+     \begin{equation} \hat{\theta}_{NLS} = \underset{\theta}{\operatorname{argmin}} \; \sum_{k=1}^N \left( ||a_{n,k}||^2 - g^2 \right)^2 
+     \label{eq:frosio}
+     \end{equation}
+  
+** Frosio et al
+   \begin{center}
+   \includegraphics[width=0.8\linewidth]{frosio-title.png}
+   \end{center}
+
+   - Show that \( ||a_{n,k}||^2 \) can be approximated by the sum of a deterministic and a gaussian term.
+   - The (nonlinear) LS estimate \eqref{eq:frosio} is then also the ML estimate.
+   - The likelihood function can be used to determine suitable model order
+     - 6, 9 or 12 parameters
+     - Aikaikes Information Criterion
+
+** Nonlinear least squares
+   - The problem 
+     \[ \hat{\theta}_{NLS} = \underset{\theta}{\operatorname{argmin}} \; \sum_{k=1}^N \left( ||a_{n,k}||^2 - g^2 \right)^2 \]
+   
+     is *not* linear in the variables $\theta$.
+
+   - Iterative solution needed.
+
+   - Implemented in matlab's =lsqnonlin= function
+
+   - Multiple solutions (local minima)
+
+     - Need to start close to true values
+
+     - Use factory calibration of sensor as starting point 
+
+* Algorithm							   :noexport:
+** Minimum of a smooth function
+** Levenberg-Marquardt
+
+* Hands-on
+** Hands-on
+*** Set-up Wireless IMU
+*** Collect calibration data
+*** Check calibration
+* Footnotes
+
+[fn:1] Weiss, Stephan, et al. "Real-time onboard visual-inertial state estimation and self-calibration of MAVs in unknown environments." Robotics and Automation (ICRA), 2012 IEEE International Conference on. IEEE, 2012.
+
+[fn:2] Kok, Manon, et al. "Calibration of a magnetometer in combination with inertial sensors." Information Fusion (FUSION), 2012 15th International Conference on. IEEE, 2012.
+
+
+
+
