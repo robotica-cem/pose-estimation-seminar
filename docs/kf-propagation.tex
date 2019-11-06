@@ -1,0 +1,59 @@
+\documentclass{standalone}
+
+\usepackage{tikz, pgf, pgfplots}
+
+
+\begin{document}
+
+\pgfplotstableread{
+  k   true  estim stdv 
+  0   4    0     10
+  1   2    2.6     2
+  2   1    1.3     1.3
+  3   1    0.9     0.8
+  4   2    1.8     0.7
+  5   3    2.9     0.6
+  6   3    3.05    0.5
+  7   4    3.9     0.5
+}\mytab%
+
+\pgfmathdeclarefunction{gauss}{2}{%
+  \pgfmathparse{1/(#2*sqrt(2*pi))*exp(-((x-#1)^2)/(2*#2^2))}%
+}
+
+\begin{tikzpicture}
+
+\begin{axis}[
+  width=10cm,
+  height = 6cm,
+  no markers,
+  ytick={0},
+  ymin=-4,
+  ymax=8,
+  xtick={0,1,2,3,4,5,6,7},
+  xmax=8,
+  ylabel={$x$},
+  xlabel={$k$},
+]
+
+\addplot[blue!50!white,thin,] table[x={k}, y={true}] {\mytab};
+\addplot[blue,thick, only marks,mark=o] table[x={k}, y={true}] {\mytab};
+\addplot[red!60!black, domain=-4:8, samples=300] ({gauss(0,2)},{x}); 
+\addplot[gray, thin, domain=-4:8, samples=10] ({0},{x}); 
+\addplot[red!60!black, domain=-4:8, samples=300] ({1+gauss(2.6,1.3)},{x}); 
+\addplot[gray, thin, domain=-4:8, samples=10] ({1},{x}); 
+\addplot[red!60!black, domain=-4:8, samples=300] ({2+gauss(1.3,0.8)},{x}); 
+\addplot[gray, thin, domain=-4:8, samples=10] ({2},{x}); 
+\addplot[red!60!black, domain=-4:8, samples=300] ({3+gauss(0.9,0.7)},{x}); 
+\addplot[gray, thin, domain=-4:8, samples=10] ({3},{x}); 
+\addplot[red!60!black, domain=-4:8, samples=300] ({4+gauss(1.8,0.6)},{x}); 
+\addplot[gray, thin, domain=-4:8, samples=10] ({4},{x}); 
+\addplot[red!60!black, domain=-4:8, samples=300] ({5+gauss(2.9,0.5)},{x}); 
+\addplot[gray, thin, domain=-4:8, samples=10] ({5},{x}); 
+\addplot[red!60!black, domain=-4:8, samples=300] ({6+gauss(3.05,0.5)},{x}); 
+\addplot[gray, thin, domain=-4:8, samples=10] ({6},{x}); 
+\addplot[red!60!black, domain=-4:8, samples=300] ({7+gauss(3.9,0.5)},{x}); 
+\addplot[gray, thin, domain=-4:8, samples=10] ({7},{x}); 
+\end{axis} 
+\end{tikzpicture}
+\end{document}
