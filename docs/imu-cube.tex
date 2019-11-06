@@ -44,30 +44,31 @@ at TeXblog_.
   \draw (7,2) rectangle (2,-1);
 \end{scope}
 
+%% Axis arrows
 \begin{scope}[every node/.append style={yslant=-0.5},yslant=-0.5]
-  \draw[red, thick, ->] (3,3) to (7,3) node[right] {$x_S$};
+  \draw[blue, thick, ->] (3,3) to (7,3) node[right] {$x_S$, right};
 \end{scope}
 \begin{scope}[every node/.append style={yslant=0.5},yslant=0.5]
-  \draw[blue, thick, ->] (3,0) to (8,0) node[right]{$y_S$};
+  \draw[green, thick, ->] (3,0) to (8,0) node[right]{$y_S$, forward};
 \end{scope}
 \begin{scope}[every node/.append style={
     yslant=0.5,xslant=-1},yslant=0.5,xslant=-1
   ]
-  \draw[green, thick, ->] (3,0) to (7,4) node[left]{$z_S$};
+  \draw[red, thick, ->] (3,0) to (7,4) node[left]{$z_S$, up};
 \end{scope}
 \end{scope}
 
 \begin{scope}[rotate=0, xshift=-6cm, yshift=-6cm]
 \begin{scope}[every node/.append style={yslant=-0.5},yslant=-0.5]
-  \draw[red!60!black, thick, ->] (3,3) to (7,3) node[right] {$x_w$, east};
+  \draw[blue!60!black, thick, ->] (3,3) to (7,3) node[right] {$x_w$, east};
 \end{scope}
 \begin{scope}[every node/.append style={yslant=0.5},yslant=0.5]
-  \draw[blue!60!black, thick, ->] (3,0) to (8,0) node[right]{$y_w$, north};
+  \draw[green!60!black, thick, ->] (3,0) to (8,0) node[right]{$y_w$, north};
 \end{scope}
 \begin{scope}[every node/.append style={
     yslant=0.5,xslant=-1},yslant=0.5,xslant=-1
   ]
-  \draw[green!60!black, thick, ->] (3,0) to (7,4) node[left] {$z_w$, up};
+  \draw[red!60!black, thick, ->] (3,0) to (7,4) node[left] {$z_w$, up};
 \end{scope}
 \end{scope}
 
