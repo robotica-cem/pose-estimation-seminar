@@ -29,18 +29,28 @@ function [xhat, meas] = filterTemplate(calAcc, calGyr, calMag)
   camerapos = [5,0,0]; % This is looking from the east towards the setting sun
   camerapos = [4,-3,0]; % This is looking from south-east
 
+  refreshrate = 20; % Approximate refreshrate
+  
   %% Filter settings
+  measurement_update = @mu_acc; % Function handle
+  measurement_update = @mu_acc_robust; 
+  measurement_update = @mu_acc_outlier_reject; 
+  
+  tolAcc = 2;
+  tolMag = tolAcc;
+  
   t0 = [];  % Initial time (initialize on first data received)
   nx = 4;
   % Add your filter settings here.
   Q = 1e-2*eye(4);
   Ra = 1e-1*eye(3);
-  Rm = eye(3);
+  Rm = eye(3); % Without normalization of the magnetic field vector
+  Rm = 1e-2*eye(3); % With normalization
   
   g0 = [0;0;9.8527];
   m0 = [0; 24.53; -21.24];
-  tolAcc = 0.1*norm(g0);
-  tolMag = 0.4*norm(m0);
+  %tolAcc = 4*norm(g0);
+  %tolMag = 0.4*norm(m0);
   normalizeAcc = 0;
   normalizeMag = 1;
   
@@ -82,8 +92,8 @@ function [xhat, meas] = filterTemplate(calAcc, calGyr, calMag)
   title(ownView, 'OWN', 'FontSize', 16);
   set(gca, 'CameraPosition', camerapos);
   googleView = [];
-  counter = 0;  % Used to throttle the displayed frame rate.
-
+  lastrefresh = [];
+ 
   %% Filter loop
   while server.status()  % Repeat while data is available
     % Get the next measurement set, assume all measurements
@@ -100,10 +110,14 @@ function [xhat, meas] = filterTemplate(calAcc, calGyr, calMag)
       t0 = t;
       tlast = t0;
     end
+    if isempty(lastrefresh)  % Initialize t0
+      lastrefresh = t;
+    end
 
+    h = t-tlast;
     gyr = data(1, 5:7)';
     if ~any(isnan(gyr))  % Gyro measurements are available.
-        h = t-tlast;
+       h = t-tlast;
         if h>0
             [x,P] = tu_gyr(x,P,gyr,Q,h);
             tlast = t;
@@ -114,7 +128,7 @@ function [xhat, meas] = filterTemplate(calAcc, calGyr, calMag)
 
     acc = data(1, 2:4)';
     if ~any(isnan(acc))  % Acc measurements are available.
-        [x,P] = mu_acc(x, P, acc, Ra, g0, tolAcc, normalizeAcc);
+        [x,P] = measurement_update(x, P, acc, Ra, g0, tolAcc, normalizeAcc);
         
         % Do something
     end
@@ -122,7 +136,7 @@ function [xhat, meas] = filterTemplate(calAcc, calGyr, calMag)
     mag = data(1, 8:10)';
     if ~any(isnan(mag))  % Mag measurements are available.
       % Do something
-    [x,P] = mu_acc(x, P, mag, Rm, m0, tolMag, normalizeMag );
+    [x,P] = measurement_update(x, P, mag, Rm, m0, tolMag, normalizeMag );
         
     end
 
@@ -132,7 +146,7 @@ function [xhat, meas] = filterTemplate(calAcc, calGyr, calMag)
     gg = R*acc/9.8;
     mm = R*mag/norm(m0);
     % Visualize result
-    if rem(counter, 10) == 0
+    if (t - lastrefresh) > 1.0/refreshrate
       setOrientation(ownView, x(1:4));
       set(gvecl, 'XData', [0 gg(1)], 'YData', [0 gg(2)], 'ZData', [0 gg(3)]);
       set(mvecl, 'XData', [0 mm(1)], 'YData', [0 mm(2)], 'ZData', [0 mm(3)]);
@@ -146,8 +160,10 @@ function [xhat, meas] = filterTemplate(calAcc, calGyr, calMag)
         setOrientation(googleView, orientation);
         title(googleView, 'GOOGLE', 'FontSize', 16);
       end
+      drawnow
+      lastrefresh = t;
     end
-    counter = counter + 1;
+    
 
     % Save estimates
     xhat.x(:, end+1) = x;
