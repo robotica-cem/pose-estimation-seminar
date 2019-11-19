@@ -21,17 +21,28 @@ function [xhat, meas] = filterTemplate(calAcc, calGyr, calMag)
   %% Setup necessary infrastructure
   import('se.hendeby.sensordata.*');  % Used to receive data.
 
+  %% Orientation viewer settings
+  % Note that the global coordinate system is East(x)-North(y)-Up(z)
+  % The view is towards the origin of the global coordinate system
+  % and from the cameraposition you set
+  camerapos = [0,-5,0]; % This is the default. Looking from straight south
+  camerapos = [5,0,0]; % This is looking from the east towards the setting sun
+  camerapos = [4,-3,0]; % This is looking from south-east
+
   %% Filter settings
   t0 = [];  % Initial time (initialize on first data received)
   nx = 4;
   % Add your filter settings here.
-
   Q = 1e-2*eye(4);
   Ra = 1e-1*eye(3);
-  Rm = 4e-2*eye(3);
+  Rm = eye(3);
   
-  g0 = [0;0;9.83];
-  m0 = [0; 32.5; -27.16];
+  g0 = [0;0;9.8527];
+  m0 = [0; 24.53; -21.24];
+  tolAcc = 0.1*norm(g0);
+  tolMag = 0.4*norm(m0);
+  normalizeAcc = 0;
+  normalizeMag = 1;
   
   
   % Current filter state.
@@ -66,6 +77,10 @@ function [xhat, meas] = filterTemplate(calAcc, calGyr, calMag)
   figure(1);
   subplot(1, 2, 1);
   ownView = OrientationView('Own filter', gca);  % Used for visualization.
+  gvecl = plot3 ([0 0], [0,0], [0,0], 'm', 'linewidth', 2);
+  mvecl = plot3 ([0 0], [0,0], [0,0], 'c', 'linewidth', 2);
+  title(ownView, 'OWN', 'FontSize', 16);
+  set(gca, 'CameraPosition', camerapos);
   googleView = [];
   counter = 0;  % Used to throttle the displayed frame rate.
 
@@ -99,7 +114,7 @@ function [xhat, meas] = filterTemplate(calAcc, calGyr, calMag)
 
     acc = data(1, 2:4)';
     if ~any(isnan(acc))  % Acc measurements are available.
-        [x,P] = mu_acc(x,P,acc,Ra,g0);
+        [x,P] = mu_acc(x, P, acc, Ra, g0, tolAcc, normalizeAcc);
         
         % Do something
     end
@@ -107,21 +122,26 @@ function [xhat, meas] = filterTemplate(calAcc, calGyr, calMag)
     mag = data(1, 8:10)';
     if ~any(isnan(mag))  % Mag measurements are available.
       % Do something
-    [x,P] = mu_acc(x,P,mag,Rm,m0);
+    [x,P] = mu_acc(x, P, mag, Rm, m0, tolMag, normalizeMag );
         
     end
 
     orientation = data(1, 18:21)';  % Google's orientation estimate.
 
+    R = Qq(x(1:4));
+    gg = R*acc/9.8;
+    mm = R*mag/norm(m0);
     % Visualize result
     if rem(counter, 10) == 0
       setOrientation(ownView, x(1:4));
-      title(ownView, 'OWN', 'FontSize', 16);
+      set(gvecl, 'XData', [0 gg(1)], 'YData', [0 gg(2)], 'ZData', [0 gg(3)]);
+      set(mvecl, 'XData', [0 mm(1)], 'YData', [0 mm(2)], 'ZData', [0 mm(3)]);
       if ~any(isnan(orientation))
         if isempty(googleView)
           subplot(1, 2, 2);
           % Used for visualization.
           googleView = OrientationView('Google filter', gca);
+          set(gca, 'CameraPosition', camerapos);
         end
         setOrientation(googleView, orientation);
         title(googleView, 'GOOGLE', 'FontSize', 16);

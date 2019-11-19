@@ -28,7 +28,7 @@ function [meas] = histAccGyroMag()
   end
 
   t0 = [];
-  T = 30; % Seconds to store
+  T = 10; % Seconds to store
   f = waitbar(0, 'Data collected');
   
   %% Filter loop

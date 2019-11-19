@@ -1,4 +1,17 @@
-function [x,P] = mu_acc(x,P,acc,Ra,g0)
+function [x,P] = mu_acc(x,P,acc,Ra,g0, tol, normalize)
+
+if abs(norm(g0) - norm(acc)) > tol
+    x=x;
+    P=P;
+    return
+end
+
+if nargin > 6
+    if normalize
+        g0 = g0/norm(g0);
+        acc = acc/norm(acc);
+    end
+end
 
 q = x;
 % Innovation
