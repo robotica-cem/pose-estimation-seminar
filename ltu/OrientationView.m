@@ -192,9 +192,9 @@ classdef OrientationView < handle
       drawnow;
     end
 
-    function title(self, varargin)
+    function th=title(self, varargin)
     % TITLE Set title of window
-      title(self.axis_, varargin{:});
+      th=title(self.axis_, varargin{:});
     end
 
     function setStandStill(self, flag)

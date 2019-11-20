@@ -1,4 +1,4 @@
-function [xhat, meas] = filterTemplate(calAcc, calGyr, calMag)
+function [xhat, meas] = attitudeEKF(calAcc, calGyr, calMag)
 % FILTERTEMPLATE  Filter template
 %
 % This is a template function for how to collect and filter data
@@ -18,7 +18,9 @@ function [xhat, meas] = filterTemplate(calAcc, calGyr, calMag)
 % is checked in the Sensor Fusion app, it will be displayed in a
 % separate view.
 
-  %% Setup necessary infrastructure
+close all
+
+%% Setup necessary infrastructure
   import('se.hendeby.sensordata.*');  % Used to receive data.
 
   %% Orientation viewer settings
@@ -30,6 +32,9 @@ function [xhat, meas] = filterTemplate(calAcc, calGyr, calMag)
   camerapos = [4,-3,0]; % This is looking from south-east
 
   refreshrate = 20; % Approximate refreshrate
+  
+  orientationError = nan(500,1); % vector to hold error between own and google
+  oeptr = 1; % Pointer to the next index to update in orientationError
   
   %% Filter settings
   measurement_update = @mu_acc; % Function handle
@@ -89,11 +94,18 @@ function [xhat, meas] = filterTemplate(calAcc, calGyr, calMag)
   ownView = OrientationView('Own filter', gca);  % Used for visualization.
   gvecl = plot3 ([0 0], [0,0], [0,0], 'm', 'linewidth', 2);
   mvecl = plot3 ([0 0], [0,0], [0,0], 'c', 'linewidth', 2);
-  title(ownView, 'OWN', 'FontSize', 16);
+  th = title(ownView, sprintf('OWN, RMSE = %2.2f degrees', 0), 'FontSize', 14);
   set(gca, 'CameraPosition', camerapos);
   googleView = [];
   lastrefresh = [];
  
+  %figure(12);
+  %clf;
+  %errlh = plot((1:length(orientationError))', orientationError, 'linewidth', 2);
+  %hold on
+  %timelh = plot([1,1], [1e-2, 1e2], 'r');
+  %ylim([1e-2, 2e2]);
+  
   %% Filter loop
   while server.status()  % Repeat while data is available
     % Get the next measurement set, assume all measurements
@@ -141,7 +153,19 @@ function [xhat, meas] = filterTemplate(calAcc, calGyr, calMag)
     end
 
     orientation = data(1, 18:21)';  % Google's orientation estimate.
-
+    
+    % Calculate error in orientation estimation
+    orinv = cat(1, orientation(1), -orientation(2:4));
+    errRotation = orinv(1)*x(1) - orinv(2:4)'*x(2:4);
+        
+    orientationError(oeptr) = 2*acosd(errRotation);
+    %set(timelh, 'XData', [oeptr, oeptr]);
+    %set(errlh, 'YData', orientationError);
+    oeptr = oeptr + 1;
+    if oeptr > length(orientationError) % Circular buffer
+        oeptr = 1;
+    end
+    
     R = Qq(x(1:4));
     gg = R*acc/9.8;
     mm = R*mag/norm(m0);
@@ -150,6 +174,7 @@ function [xhat, meas] = filterTemplate(calAcc, calGyr, calMag)
       setOrientation(ownView, x(1:4));
       set(gvecl, 'XData', [0 gg(1)], 'YData', [0 gg(2)], 'ZData', [0 gg(3)]);
       set(mvecl, 'XData', [0 mm(1)], 'YData', [0 mm(2)], 'ZData', [0 mm(3)]);
+      set(th, 'String', sprintf('OWN, RMSE = %2.2f degrees', nanmean(orientationError)))
       if ~any(isnan(orientation))
         if isempty(googleView)
           subplot(1, 2, 2);
